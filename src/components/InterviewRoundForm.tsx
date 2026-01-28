@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Video, Phone, MapPin, FileText } from 'lucide-react';
 import { interviewRoundsApi } from '../lib/api';
 import type { InterviewRound } from '../lib/database.types';
-import { INTERVIEW_ROUND_TYPES, INTERVIEW_ROUND_STATUSES, FEEDBACK_SENTIMENTS } from '../lib/database.types';
+import { INTERVIEW_ROUND_TYPES, INTERVIEW_ROUND_STATUSES, FEEDBACK_SENTIMENTS, MEETING_TYPES } from '../lib/database.types';
 import { useToast } from '../contexts/ToastContext';
 
 interface InterviewRoundFormProps {
@@ -28,6 +28,10 @@ export default function InterviewRoundForm({
     interview_date: '',
     interviewer_name: '',
     interviewer_linkedin_url: '',
+    meeting_type: '',
+    meeting_link: '',
+    meeting_phone: '',
+    meeting_notes: '',
     question_types_expected: '',
     actual_questions_asked: '',
     feedback_sentiment: '',
@@ -50,6 +54,10 @@ export default function InterviewRoundForm({
         interview_date: formattedDate,
         interviewer_name: interviewRound.interviewer_name,
         interviewer_linkedin_url: interviewRound.interviewer_linkedin_url,
+        meeting_type: interviewRound.meeting_type || '',
+        meeting_link: interviewRound.meeting_link || '',
+        meeting_phone: interviewRound.meeting_phone || '',
+        meeting_notes: interviewRound.meeting_notes || '',
         question_types_expected: interviewRound.question_types_expected,
         actual_questions_asked: interviewRound.actual_questions_asked,
         feedback_sentiment: interviewRound.feedback_sentiment,
@@ -97,6 +105,10 @@ export default function InterviewRoundForm({
         interview_date: interviewDate,
         interviewer_name: formData.interviewer_name,
         interviewer_linkedin_url: formData.interviewer_linkedin_url,
+        meeting_type: formData.meeting_type,
+        meeting_link: formData.meeting_link,
+        meeting_phone: formData.meeting_phone,
+        meeting_notes: formData.meeting_notes,
         question_types_expected: formData.question_types_expected,
         actual_questions_asked: formData.actual_questions_asked,
         feedback_sentiment: formData.feedback_sentiment,
@@ -222,6 +234,111 @@ export default function InterviewRoundForm({
                 placeholder="https://linkedin.com/in/..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <Video className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Meeting Details</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Meeting Type</label>
+                <select
+                  name="meeting_type"
+                  value={formData.meeting_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select meeting type...</option>
+                  {MEETING_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(formData.meeting_type === 'Zoom' ||
+                formData.meeting_type === 'Google Meet' ||
+                formData.meeting_type === 'Microsoft Teams' ||
+                formData.meeting_type === 'Other') && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Meeting Link
+                  </label>
+                  <div className="relative">
+                    <Video className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="url"
+                      name="meeting_link"
+                      value={formData.meeting_link}
+                      onChange={handleChange}
+                      placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.meeting_type === 'Phone Call' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="tel"
+                      name="meeting_phone"
+                      value={formData.meeting_phone}
+                      onChange={handleChange}
+                      placeholder="+1 (555) 123-4567"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.meeting_type === 'In-Person' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location / Address
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <textarea
+                      name="meeting_notes"
+                      value={formData.meeting_notes}
+                      onChange={handleChange}
+                      rows={2}
+                      placeholder="Enter the office address or meeting location..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.meeting_type && formData.meeting_type !== 'In-Person' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Notes / Access Codes
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <textarea
+                      name="meeting_notes"
+                      value={formData.meeting_notes}
+                      onChange={handleChange}
+                      rows={2}
+                      placeholder="Meeting password, dial-in instructions, or other details..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

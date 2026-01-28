@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle, XCircle, Edit, Trash2, Linkedin, Download, Copy, RefreshCw } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Edit, Trash2, Linkedin, Download, Copy, RefreshCw, Video, Phone, MapPin, ExternalLink } from 'lucide-react';
 import type { InterviewRound } from '../lib/database.types';
 import { downloadInterviewCalendar, formatRelativeTime, getDayLabel, getUrgencyLevel } from '../lib/calendar';
 
@@ -193,6 +193,70 @@ export default function InterviewRoundCard({
             </div>
           )}
         </div>
+
+        {interviewRound.meeting_type && (
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Meeting Details</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {interviewRound.meeting_type === 'Phone Call' && <Phone className="w-4 h-4 text-gray-600" />}
+                {(interviewRound.meeting_type === 'Zoom' ||
+                  interviewRound.meeting_type === 'Google Meet' ||
+                  interviewRound.meeting_type === 'Microsoft Teams') && (
+                  <Video className="w-4 h-4 text-gray-600" />
+                )}
+                {interviewRound.meeting_type === 'In-Person' && <MapPin className="w-4 h-4 text-gray-600" />}
+                <span className="text-sm font-medium text-gray-900">{interviewRound.meeting_type}</span>
+              </div>
+
+              {interviewRound.meeting_link && (
+                <div className="flex items-center gap-2">
+                  <a
+                    href={interviewRound.meeting_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Join Meeting
+                  </a>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(interviewRound.meeting_link)}
+                    className="p-1.5 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                    title="Copy meeting link"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {interviewRound.meeting_phone && (
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`tel:${interviewRound.meeting_phone}`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    <Phone className="w-3 h-3" />
+                    {interviewRound.meeting_phone}
+                  </a>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(interviewRound.meeting_phone)}
+                    className="p-1.5 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                    title="Copy phone number"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {interviewRound.meeting_notes && (
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-xs text-gray-600 whitespace-pre-line">{interviewRound.meeting_notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {interviewRound.question_types_expected && (
           <div>

@@ -130,14 +130,37 @@ export function generateInterviewICS(
     descriptionParts.push(`LinkedIn: ${interviewRound.interviewer_linkedin_url}`);
   }
 
+  if (interviewRound.meeting_type) {
+    descriptionParts.push(`\nMeeting Type: ${interviewRound.meeting_type}`);
+  }
+
+  if (interviewRound.meeting_link) {
+    descriptionParts.push(`Meeting Link: ${interviewRound.meeting_link}`);
+  }
+
+  if (interviewRound.meeting_phone) {
+    descriptionParts.push(`Phone Number: ${interviewRound.meeting_phone}`);
+  }
+
+  if (interviewRound.meeting_notes) {
+    descriptionParts.push(`\nMeeting Notes:\n${interviewRound.meeting_notes}`);
+  }
+
   if (interviewRound.question_types_expected) {
     descriptionParts.push(`\nExpected Topics:\n${interviewRound.question_types_expected}`);
+  }
+
+  let location = `${companyName} - ${interviewRound.round_type}`;
+  if (interviewRound.meeting_type === 'In-Person' && interviewRound.meeting_notes) {
+    location = interviewRound.meeting_notes;
+  } else if (interviewRound.meeting_link) {
+    location = interviewRound.meeting_link;
   }
 
   const event: CalendarEvent = {
     title,
     description: descriptionParts.join('\n'),
-    location: `${companyName} - ${interviewRound.round_type}`,
+    location,
     startDate,
     endDate,
     reminderMinutes: 1440,

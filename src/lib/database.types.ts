@@ -249,6 +249,10 @@ export type Database = {
           feedback_notes: string
           learnings: string
           cancellation_reason: string
+          meeting_type: string
+          meeting_link: string
+          meeting_phone: string
+          meeting_notes: string
           created_at: string
           updated_at: string
         }
@@ -267,6 +271,10 @@ export type Database = {
           feedback_notes?: string
           learnings?: string
           cancellation_reason?: string
+          meeting_type?: string
+          meeting_link?: string
+          meeting_phone?: string
+          meeting_notes?: string
           created_at?: string
           updated_at?: string
         }
@@ -285,6 +293,10 @@ export type Database = {
           feedback_notes?: string
           learnings?: string
           cancellation_reason?: string
+          meeting_type?: string
+          meeting_link?: string
+          meeting_phone?: string
+          meeting_notes?: string
           created_at?: string
           updated_at?: string
         }
@@ -360,9 +372,19 @@ export const FEEDBACK_SENTIMENTS = [
   'Mixed',
 ] as const;
 
+export const MEETING_TYPES = [
+  'Zoom',
+  'Google Meet',
+  'Microsoft Teams',
+  'Phone Call',
+  'In-Person',
+  'Other',
+] as const;
+
 export type ApplicationStatus = typeof APPLICATION_STATUSES[number];
 export type ApplicationSource = typeof APPLICATION_SOURCES[number];
 export type WorkType = typeof WORK_TYPES[number];
 export type InterviewRoundType = typeof INTERVIEW_ROUND_TYPES[number];
 export type InterviewRoundStatus = typeof INTERVIEW_ROUND_STATUSES[number];
 export type FeedbackSentiment = typeof FEEDBACK_SENTIMENTS[number];
+export type MeetingType = typeof MEETING_TYPES[number];
