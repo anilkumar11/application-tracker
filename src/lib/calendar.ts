@@ -57,7 +57,7 @@ export function generateICS(event: CalendarEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Job Tracker//Interview Calendar//EN',
+    'PRODID:-//Jobs Search Applications Tracker//Interview Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VTIMEZONE',
