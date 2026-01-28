@@ -15,9 +15,11 @@ import {
   Mail,
   ChevronDown,
   ChevronUp,
+  Tag as TagIcon,
 } from 'lucide-react';
 import type { ApplicationWithRelations, ApplicationStatus, InterviewRound } from '../lib/database.types';
 import StatusBadge from './StatusBadge';
+import TagSelector from './TagSelector';
 import { applicationApi, followUpApi, interviewRoundsApi } from '../lib/api';
 import InterviewRoundCard from './InterviewRoundCard';
 import InterviewRoundForm from './InterviewRoundForm';
@@ -276,6 +278,40 @@ export default function ApplicationDetail({
               <p className="text-gray-700 whitespace-pre-wrap">{currentApplication.notes}</p>
             </div>
           )}
+
+          <div className="pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <TagIcon className="w-5 h-5" />
+                Tags
+              </h3>
+              <TagSelector
+                applicationId={currentApplication.id}
+                selectedTags={currentApplication.tags || []}
+                onTagsChange={refreshApplicationData}
+              />
+            </div>
+            {currentApplication.tags && currentApplication.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {currentApplication.tags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg"
+                    style={{
+                      backgroundColor: tag.color + '20',
+                      color: tag.color,
+                      borderWidth: '1px',
+                      borderColor: tag.color + '40',
+                    }}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No tags applied</p>
+            )}
+          </div>
 
           {currentApplication.referrals && currentApplication.referrals.length > 0 && (
             <div className="pt-4 border-t border-gray-200">

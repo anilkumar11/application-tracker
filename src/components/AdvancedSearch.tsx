@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Search, X, Filter, Calendar, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, X, Filter, Calendar, DollarSign, Tag as TagIcon } from 'lucide-react';
 import { APPLICATION_STATUSES } from '../lib/database.types';
-import type { ApplicationStatus } from '../lib/database.types';
+import type { ApplicationStatus, Tag } from '../lib/database.types';
+import { tagsApi } from '../lib/tagsApi';
 
 export interface AdvancedSearchCriteria {
   query: string;
@@ -14,6 +15,7 @@ export interface AdvancedSearchCriteria {
   salaryMax: string;
   hasReferral: boolean | null;
   hasInterviews: boolean | null;
+  tagIds: string[];
 }
 
 interface AdvancedSearchProps {
@@ -27,6 +29,7 @@ const APPLICATION_SOURCES = ['LinkedIn', 'Company Website', 'Referral', 'Recruit
 
 export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: AdvancedSearchProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [criteria, setCriteria] = useState<AdvancedSearchCriteria>(
     initialCriteria || {
       query: '',
@@ -39,8 +42,21 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
       salaryMax: '',
       hasReferral: null,
       hasInterviews: null,
+      tagIds: [],
     }
   );
+
+  useEffect(() => {
+    async function loadTags() {
+      try {
+        const tags = await tagsApi.getAll();
+        setAllTags(tags);
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+      }
+    }
+    loadTags();
+  }, []);
 
   function handleSearch() {
     onSearch(criteria);
@@ -58,6 +74,7 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
       salaryMax: '',
       hasReferral: null,
       hasInterviews: null,
+      tagIds: [],
     };
     setCriteria(clearedCriteria);
     onClear();
@@ -91,6 +108,15 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
     });
   }
 
+  function toggleTag(tagId: string) {
+    setCriteria({
+      ...criteria,
+      tagIds: criteria.tagIds.includes(tagId)
+        ? criteria.tagIds.filter(id => id !== tagId)
+        : [...criteria.tagIds, tagId],
+    });
+  }
+
   const hasActiveFilters =
     criteria.query !== '' ||
     criteria.statuses.length > 0 ||
@@ -101,7 +127,8 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
     criteria.salaryMin !== '' ||
     criteria.salaryMax !== '' ||
     criteria.hasReferral !== null ||
-    criteria.hasInterviews !== null;
+    criteria.hasInterviews !== null ||
+    criteria.tagIds.length > 0;
 
   return (
     <div className="space-y-4">
@@ -137,6 +164,7 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
                 criteria.salaryMin || criteria.salaryMax,
                 criteria.hasReferral !== null,
                 criteria.hasInterviews !== null,
+                criteria.tagIds.length > 0,
               ].filter(Boolean).length}
             </span>
           )}
@@ -263,6 +291,41 @@ export default function AdvancedSearch({ onSearch, onClear, initialCriteria }: A
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <TagIcon className="w-4 h-4" />
+              Tags
+            </h4>
+            {allTags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {allTags.map((tag) => {
+                  const isSelected = criteria.tagIds.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                        isSelected ? 'ring-2 ring-offset-2' : 'opacity-60 hover:opacity-100'
+                      }`}
+                      style={{
+                        backgroundColor: tag.color + '20',
+                        color: tag.color,
+                        borderWidth: '1px',
+                        borderColor: tag.color + '40',
+                        ringColor: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No tags available</p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-gray-200">

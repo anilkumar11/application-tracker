@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ApplicationWithRelations, ApplicationStatus } from '../lib/database.types';
 import StatusBadge from './StatusBadge';
+import TagSelector from './TagSelector';
 import { APPLICATION_STATUSES } from '../lib/database.types';
 
 interface ApplicationCardProps {
@@ -26,6 +27,7 @@ interface ApplicationCardProps {
   onStatusUpdate: (newStatus: ApplicationStatus) => void;
   showStatusDropdown: boolean;
   onToggleStatusDropdown: () => void;
+  onTagsChange: () => void;
 }
 
 const statusBorderColors: Record<ApplicationStatus, string> = {
@@ -60,6 +62,7 @@ export default function ApplicationCard({
   onStatusUpdate,
   showStatusDropdown,
   onToggleStatusDropdown,
+  onTagsChange,
 }: ApplicationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -163,6 +166,30 @@ export default function ApplicationCard({
             </div>
           </div>
         </div>
+
+        {application.tags && application.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {application.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full"
+                style={{
+                  backgroundColor: tag.color + '20',
+                  color: tag.color,
+                  borderWidth: '1px',
+                  borderColor: tag.color + '40',
+                }}
+              >
+                {tag.name}
+              </span>
+            ))}
+            {application.tags.length > 3 && (
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">
+                +{application.tags.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
 
         {(overdueFollowUps.length > 0 || nextInterview || pendingFollowUps.length > 0 || totalInterviews > 0) && (
           <div className="mb-2.5 space-y-1.5">
@@ -387,6 +414,12 @@ export default function ApplicationCard({
           >
             Edit
           </button>
+
+          <TagSelector
+            applicationId={application.id}
+            selectedTags={application.tags || []}
+            onTagsChange={onTagsChange}
+          />
 
           {application.notes && !isExpanded && (
             <div className="ml-auto text-xs text-gray-500 italic truncate max-w-xs">

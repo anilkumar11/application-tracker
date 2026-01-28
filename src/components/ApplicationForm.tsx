@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, Copy, Link } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, Copy, Link, Tag as TagIcon, Check } from 'lucide-react';
 import { applicationApi, followUpApi, preferencesApi } from '../lib/api';
-import type { ApplicationWithRelations } from '../lib/database.types';
+import { tagsApi } from '../lib/tagsApi';
+import type { ApplicationWithRelations, Tag } from '../lib/database.types';
 import { APPLICATION_STATUSES, APPLICATION_SOURCES, WORK_TYPES } from '../lib/database.types';
 import { parseJobUrl } from '../lib/urlParser';
 import DatePresets from './DatePresets';
@@ -50,6 +51,12 @@ export default function ApplicationForm({ application, onClose, onSuccess, recen
   const [customFollowUpDate, setCustomFollowUpDate] = useState('');
   const [positionTitles, setPositionTitles] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [showTagsSection, setShowTagsSection] = useState(false);
+  const [showCreateTag, setShowCreateTag] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#3b82f6');
 
   useEffect(() => {
     if (application) {
@@ -113,6 +120,27 @@ export default function ApplicationForm({ application, onClose, onSuccess, recen
     loadPreferences();
   }, []);
 
+  useEffect(() => {
+    async function loadTags() {
+      try {
+        const tags = await tagsApi.getAll();
+        setAllTags(tags);
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+      }
+    }
+    loadTags();
+  }, []);
+
+  useEffect(() => {
+    if (application && application.tags) {
+      setSelectedTagIds(application.tags.map(tag => tag.id));
+      if (application.tags.length > 0) {
+        setShowTagsSection(true);
+      }
+    }
+  }, [application]);
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setFormData((prev) => ({
       ...prev,
@@ -160,16 +188,59 @@ export default function ApplicationForm({ application, onClose, onSuccess, recen
     setShowCopyOptions(false);
   }
 
+  async function handleCreateTag() {
+    if (!newTagName.trim()) return;
+
+    try {
+      const newTag = await tagsApi.create(newTagName.trim(), newTagColor);
+      setAllTags([...allTags, newTag]);
+      setSelectedTagIds([...selectedTagIds, newTag.id]);
+      setNewTagName('');
+      setNewTagColor('#3b82f6');
+      setShowCreateTag(false);
+    } catch (error) {
+      console.error('Failed to create tag:', error);
+      alert('Failed to create tag. Please try again.');
+    }
+  }
+
+  function toggleTag(tagId: string) {
+    if (selectedTagIds.includes(tagId)) {
+      setSelectedTagIds(selectedTagIds.filter(id => id !== tagId));
+    } else {
+      setSelectedTagIds([...selectedTagIds, tagId]);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let appId: string;
+
       if (application) {
         await applicationApi.update(application.id, formData);
+        appId = application.id;
+
+        const currentTagIds = application.tags?.map(t => t.id) || [];
+        const toAdd = selectedTagIds.filter(id => !currentTagIds.includes(id));
+        const toRemove = currentTagIds.filter(id => !selectedTagIds.includes(id));
+
+        for (const tagId of toAdd) {
+          await tagsApi.addToApplication(appId, tagId);
+        }
+        for (const tagId of toRemove) {
+          await tagsApi.removeFromApplication(appId, tagId);
+        }
       } else {
         const validReferrals = referrals.filter((ref) => ref.name.trim() !== '');
         const newApp = await applicationApi.create(formData, validReferrals);
+        appId = newApp.id;
+
+        for (const tagId of selectedTagIds) {
+          await tagsApi.addToApplication(appId, tagId);
+        }
 
         if (autoFollowUp && newApp) {
           await followUpApi.createAutoSuggestions(newApp.id, formData.application_date);
@@ -520,6 +591,112 @@ export default function ApplicationForm({ application, onClose, onSuccess, recen
               {showReferrals ? 'Hide' : 'Add'} referrals {formData.application_source === 'Referral' && '(recommended)'}
             </button>
           </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowTagsSection(!showTagsSection)}
+              className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              {showTagsSection ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showTagsSection ? 'Hide' : 'Add'} tags
+            </button>
+          </div>
+
+          {showTagsSection && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <TagIcon className="w-5 h-5" />
+                  Tags
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTag(!showCreateTag)}
+                  className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Tag
+                </button>
+              </div>
+
+              {showCreateTag && (
+                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tag Name</label>
+                      <input
+                        type="text"
+                        value={newTagName}
+                        onChange={(e) => setNewTagName(e.target.value)}
+                        placeholder="e.g., Dream Company"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={newTagColor}
+                          onChange={(e) => setNewTagColor(e.target.value)}
+                          className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateTag}
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Create
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreateTag(false);
+                            setNewTagName('');
+                            setNewTagColor('#3b82f6');
+                          }}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {allTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map((tag) => {
+                    const isSelected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                          isSelected ? 'ring-2 ring-offset-2' : 'opacity-60 hover:opacity-100'
+                        }`}
+                        style={{
+                          backgroundColor: tag.color + '20',
+                          color: tag.color,
+                          borderWidth: '1px',
+                          borderColor: tag.color + '40',
+                          ringColor: tag.color,
+                        }}
+                      >
+                        {tag.name}
+                        {isSelected && <Check className="w-4 h-4" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No tags available. Create one above.</p>
+              )}
+            </div>
+          )}
 
           {showReferrals && (
             <div className="space-y-4">

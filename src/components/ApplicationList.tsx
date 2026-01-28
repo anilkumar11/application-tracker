@@ -147,6 +147,7 @@ export default function ApplicationList({ onSelectApplication, onEditApplication
               onStatusUpdate={(newStatus) => handleQuickStatusUpdate(app.id, newStatus)}
               showStatusDropdown={showStatusDropdown === app.id}
               onToggleStatusDropdown={() => setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id)}
+              onTagsChange={loadApplications}
             />
           ))}
         </div>
