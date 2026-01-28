@@ -1,0 +1,348 @@
+import { useEffect, useState } from 'react';
+import { Briefcase, Search, Filter, MapPin, Calendar, Users, Grid3x3, List, ArrowUpDown } from 'lucide-react';
+import { applicationApi } from '../lib/api';
+import type { ApplicationWithRelations, ApplicationStatus } from '../lib/database.types';
+import { APPLICATION_STATUSES } from '../lib/database.types';
+import StatusBadge from './StatusBadge';
+
+interface ApplicationsListProps {
+  onSelectApplication: (application: ApplicationWithRelations) => void;
+  onEditApplication: (application: ApplicationWithRelations) => void;
+  refreshTrigger?: number;
+}
+
+export default function ApplicationsList({ onSelectApplication, onEditApplication, refreshTrigger }: ApplicationsListProps) {
+  const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
+  const [filteredApplications, setFilteredApplications] = useState<ApplicationWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  const [showStatusDropdown, setShowStatusDropdown] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'card' | 'compact'>('card');
+  const [sortBy, setSortBy] = useState<'date' | 'company' | 'status'>('date');
+
+  useEffect(() => {
+    loadApplications();
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    filterApplications();
+  }, [applications, searchQuery, statusFilter, sortBy]);
+
+  async function loadApplications() {
+    try {
+      const appsData = await applicationApi.getAll();
+      setApplications(appsData);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function filterApplications() {
+    let filtered = applications;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (app) =>
+          app.company_name.toLowerCase().includes(query) ||
+          app.position_title.toLowerCase().includes(query) ||
+          app.location.toLowerCase().includes(query)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((app) => app.status === statusFilter);
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'date') {
+        return new Date(b.application_date).getTime() - new Date(a.application_date).getTime();
+      } else if (sortBy === 'company') {
+        return a.company_name.localeCompare(b.company_name);
+      } else if (sortBy === 'status') {
+        return a.status.localeCompare(b.status);
+      }
+      return 0;
+    });
+
+    setFilteredApplications(filtered);
+  }
+
+  async function handleQuickStatusUpdate(id: string, newStatus: ApplicationStatus) {
+    try {
+      await applicationApi.update(id, { status: newStatus });
+      setShowStatusDropdown(null);
+      loadApplications();
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  }
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (showStatusDropdown && !(event.target as Element).closest('.status-dropdown')) {
+        setShowStatusDropdown(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusDropdown]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Applications</h2>
+          <p className="text-gray-600 mt-1">Manage all your job applications</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('card')}
+            className={`p-2 rounded-lg transition-colors ${
+              viewMode === 'card'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            title="Card view"
+          >
+            <Grid3x3 className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setViewMode('compact')}
+            className={`p-2 rounded-lg transition-colors ${
+              viewMode === 'compact'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            title="Compact view"
+          >
+            <List className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Search by company, position, or location..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div className="relative">
+          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'all')}
+            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+          >
+            <option value="all">All Statuses</option>
+            {APPLICATION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="relative">
+          <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'date' | 'company' | 'status')}
+            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+          >
+            <option value="date">Sort by Date</option>
+            <option value="company">Sort by Company</option>
+            <option value="status">Sort by Status</option>
+          </select>
+        </div>
+      </div>
+
+      {filteredApplications.length === 0 ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+          <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No applications found</h3>
+          <p className="text-gray-600">
+            {searchQuery || statusFilter !== 'all'
+              ? 'Try adjusting your filters'
+              : 'Start tracking your job applications'}
+          </p>
+        </div>
+      ) : viewMode === 'card' ? (
+        <div className="grid grid-cols-1 gap-3">
+          {filteredApplications.map((app) => (
+            <div
+              key={app.id}
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => onSelectApplication(app)}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900">{app.company_name} - {app.position_title}</h3>
+                </div>
+                <StatusBadge status={app.status as ApplicationStatus} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-2.5">
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date(app.application_date).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4" />
+                  <span>{app.location || 'Not specified'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <Briefcase className="w-4 h-4" />
+                  <span>{app.work_type}</span>
+                </div>
+                {app.referrals && app.referrals.length > 0 && (
+                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <Users className="w-4 h-4" />
+                    <span>{app.referrals.length} referral{app.referrals.length > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                <span className="text-sm text-gray-600 font-medium">Quick update:</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  <div className="relative status-dropdown">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all duration-150"
+                    >
+                      Change Status
+                    </button>
+                    {showStatusDropdown === app.id && (
+                      <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                        {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
+                          <button
+                            key={status}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickStatusUpdate(app.id, status);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditApplication(app);
+                    }}
+                    className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 hover:scale-105 active:scale-95 transition-all duration-150"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="divide-y divide-gray-200">
+            {filteredApplications.map((app) => (
+              <div
+                key={app.id}
+                className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => onSelectApplication(app)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-gray-900 truncate">{app.company_name} - {app.position_title}</h4>
+                      <StatusBadge status={app.status as ApplicationStatus} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(app.application_date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>{app.location || 'Not specified'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Briefcase className="w-3 h-3" />
+                        <span>{app.work_type}</span>
+                      </div>
+                      {app.referrals && app.referrals.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span>{app.referrals.length} referral{app.referrals.length > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative status-dropdown">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
+                      >
+                        Change Status
+                      </button>
+                      {showStatusDropdown === app.id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                          {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
+                            <button
+                              key={status}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickStatusUpdate(app.id, status);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                            >
+                              {status}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditApplication(app);
+                      }}
+                      className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
