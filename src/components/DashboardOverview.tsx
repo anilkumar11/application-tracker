@@ -101,24 +101,12 @@ export default function DashboardOverview({ refreshTrigger }: DashboardOverviewP
         <p className="text-gray-600 mt-1">Track your job application progress at a glance</p>
       </div>
 
-      <div className="overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex lg:grid lg:grid-cols-5 gap-4 min-w-max lg:min-w-0">
-          <div className="w-64 lg:w-auto">
-            <StatsCard title="Total Applications" value={stats.total} icon={Briefcase} color="bg-blue-600" />
-          </div>
-          <div className="w-64 lg:w-auto">
-            <StatsCard title="Applied" value={stats.applied} icon={Clock} color="bg-gray-600" />
-          </div>
-          <div className="w-64 lg:w-auto">
-            <StatsCard title="Interviewing" value={stats.interviewing} icon={Phone} color="bg-orange-600" />
-          </div>
-          <div className="w-64 lg:w-auto">
-            <StatsCard title="Offers" value={stats.offers} icon={Award} color="bg-green-600" />
-          </div>
-          <div className="w-64 lg:w-auto">
-            <StatsCard title="Rejected" value={stats.rejected} icon={XCircle} color="bg-red-600" />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatsCard title="Total Applications" value={stats.total} icon={Briefcase} color="bg-blue-600" />
+        <StatsCard title="Applied" value={stats.applied} icon={Clock} color="bg-gray-600" />
+        <StatsCard title="Interviewing" value={stats.interviewing} icon={Phone} color="bg-orange-600" />
+        <StatsCard title="Offers" value={stats.offers} icon={Award} color="bg-green-600" />
+        <StatsCard title="Rejected" value={stats.rejected} icon={XCircle} color="bg-red-600" />
       </div>
 
       {overdueFollowUps.length > 0 && (
