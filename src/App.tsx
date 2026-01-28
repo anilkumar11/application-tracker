@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List, BarChart3, Moon, Sun } from 'lucide-react';
+import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List, BarChart3, Moon, Sun, Tag, Archive } from 'lucide-react';
 import DashboardOverview from './components/DashboardOverview';
 import ApplicationsList from './components/ApplicationsList';
 import CalendarView from './components/CalendarView';
 import Analytics from './components/Analytics';
+import TagsManagement from './components/TagsManagement';
+import ArchiveView from './components/ArchiveView';
 import ApplicationForm from './components/ApplicationForm';
 import ApplicationDetail from './components/ApplicationDetail';
 import QuickAddModal from './components/QuickAddModal';
@@ -16,7 +18,7 @@ import { applicationApi } from './lib/api';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './contexts/ThemeContext';
 
-type ViewType = 'dashboard' | 'applications' | 'calendar' | 'analytics';
+type ViewType = 'dashboard' | 'applications' | 'calendar' | 'analytics' | 'tags' | 'archive';
 type AuthView = 'landing' | 'login' | 'signup';
 
 function App() {
@@ -290,6 +292,28 @@ function App() {
               <BarChart3 className="w-5 h-5" />
               Analytics
             </button>
+            <button
+              onClick={() => setCurrentView('tags')}
+              className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+                currentView === 'tags'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Tag className="w-5 h-5" />
+              Tags
+            </button>
+            <button
+              onClick={() => setCurrentView('archive')}
+              className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+                currentView === 'archive'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <Archive className="w-5 h-5" />
+              Archive
+            </button>
           </div>
         </div>
 
@@ -315,6 +339,14 @@ function App() {
 
         {currentView === 'analytics' && (
           <Analytics />
+        )}
+
+        {currentView === 'tags' && (
+          <TagsManagement />
+        )}
+
+        {currentView === 'archive' && (
+          <ArchiveView refreshTrigger={refreshTrigger} />
         )}
       </main>
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Briefcase, Search, Filter, MapPin, Calendar, Users, Grid3x3, List, ArrowUpDown, Download } from 'lucide-react';
+import { Briefcase, Search, Filter, MapPin, Calendar, Users, Grid3x3, List, ArrowUpDown, Download, CheckSquare, Square, Trash2, Archive, X } from 'lucide-react';
 import { applicationApi } from '../lib/api';
 import type { ApplicationWithRelations, ApplicationStatus } from '../lib/database.types';
 import { APPLICATION_STATUSES } from '../lib/database.types';
 import { downloadCSV, downloadJSON, downloadDetailedReport } from '../lib/export';
 import StatusBadge from './StatusBadge';
+import { useToast } from '../contexts/ToastContext';
 
 interface ApplicationsListProps {
   onSelectApplication: (application: ApplicationWithRelations) => void;
@@ -13,6 +14,7 @@ interface ApplicationsListProps {
 }
 
 export default function ApplicationsList({ onSelectApplication, onEditApplication, refreshTrigger }: ApplicationsListProps) {
+  const toast = useToast();
   const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<ApplicationWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,10 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
   const [sortBy, setSortBy] = useState<'date' | 'company' | 'status'>('date');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
+  const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
 
   useEffect(() => {
     loadApplications();
@@ -86,6 +92,78 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
     }
   }
 
+  function toggleSelection(id: string) {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === paginatedApplications.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedApplications.map(app => app.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} application(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBulkActionInProgress(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => applicationApi.delete(id)));
+      toast.success(`Successfully deleted ${selectedIds.size} application(s)`);
+      setSelectedIds(new Set());
+      await loadApplications();
+    } catch (error) {
+      console.error('Error deleting applications:', error);
+      toast.error('Failed to delete some applications');
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  }
+
+  async function handleBulkArchive() {
+    setBulkActionInProgress(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        applicationApi.update(id, { archived: true })
+      ));
+      toast.success(`Successfully archived ${selectedIds.size} application(s)`);
+      setSelectedIds(new Set());
+      await loadApplications();
+    } catch (error) {
+      console.error('Error archiving applications:', error);
+      toast.error('Failed to archive some applications');
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  }
+
+  async function handleBulkStatusUpdate(newStatus: ApplicationStatus) {
+    setBulkActionInProgress(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        applicationApi.update(id, { status: newStatus })
+      ));
+      toast.success(`Successfully updated ${selectedIds.size} application(s) to ${newStatus}`);
+      setSelectedIds(new Set());
+      setShowBulkStatusDropdown(false);
+      await loadApplications();
+    } catch (error) {
+      console.error('Error updating applications:', error);
+      toast.error('Failed to update some applications');
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Element;
@@ -97,11 +175,19 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
       if (showExportDropdown && !target.closest('.export-dropdown')) {
         setShowExportDropdown(false);
       }
+
+      if (showBulkStatusDropdown && !target.closest('.bulk-status-dropdown')) {
+        setShowBulkStatusDropdown(false);
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusDropdown, showExportDropdown]);
+  }, [showStatusDropdown, showExportDropdown, showBulkStatusDropdown]);
+
+  useEffect(() => {
+    setShowBulkActions(selectedIds.size > 0);
+  }, [selectedIds]);
 
   if (loading) {
     return (
@@ -230,6 +316,66 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
         </div>
       </div>
 
+      {showBulkActions && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+                title="Clear selection"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <p className="text-sm font-medium text-gray-900">
+                {selectedIds.size} {selectedIds.size === 1 ? 'application' : 'applications'} selected
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative bulk-status-dropdown">
+                <button
+                  onClick={() => setShowBulkStatusDropdown(!showBulkStatusDropdown)}
+                  disabled={bulkActionInProgress}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Update Status
+                </button>
+                {showBulkStatusDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                    {APPLICATION_STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => handleBulkStatusUpdate(status)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleBulkArchive}
+                disabled={bulkActionInProgress}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                <Archive className="w-4 h-4" />
+                Archive
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkActionInProgress}
+                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {filteredApplications.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
           <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -241,164 +387,232 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
           </p>
         </div>
       ) : viewMode === 'card' ? (
-        <div className="grid grid-cols-1 gap-3">
-          {paginatedApplications.map((app) => (
-            <div
-              key={app.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => onSelectApplication(app)}
+        <>
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <button
+              onClick={toggleSelectAll}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+              title={selectedIds.size === paginatedApplications.length ? 'Deselect all' : 'Select all'}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900">{app.company_name} - {app.position_title}</h3>
-                </div>
-                <StatusBadge status={app.status as ApplicationStatus} />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-2.5">
-                <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(app.application_date).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{app.location || 'Not specified'}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <Briefcase className="w-4 h-4" />
-                  <span>{app.work_type}</span>
-                </div>
-                {app.referrals && app.referrals.length > 0 && (
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span>{app.referrals.length} referral{app.referrals.length > 1 ? 's' : ''}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                <span className="text-sm text-gray-600 font-medium">Quick update:</span>
-                <div className="flex gap-1.5 flex-wrap">
-                  <div className="relative status-dropdown">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
-                      }}
-                      className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all duration-150"
-                    >
-                      Change Status
-                    </button>
-                    {showStatusDropdown === app.id && (
-                      <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
-                        {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
-                          <button
-                            key={status}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleQuickStatusUpdate(app.id, status);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
-                          >
-                            {status}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditApplication(app);
-                    }}
-                    className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 hover:scale-105 active:scale-95 transition-all duration-150"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="divide-y divide-gray-200">
+              {selectedIds.size === paginatedApplications.length ? (
+                <CheckSquare className="w-5 h-5 text-blue-600" />
+              ) : (
+                <Square className="w-5 h-5" />
+              )}
+            </button>
+            <span className="text-sm text-gray-600 font-medium">
+              Select all on this page
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
             {paginatedApplications.map((app) => (
               <div
                 key={app.id}
-                className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => onSelectApplication(app)}
+                className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all ${
+                  selectedIds.has(app.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                }`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-gray-900 truncate">{app.company_name} - {app.position_title}</h4>
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelection(app.id);
+                    }}
+                    className="mt-1 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
+                  >
+                    {selectedIds.has(app.id) ? (
+                      <CheckSquare className="w-5 h-5 text-blue-600" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                  </button>
+                  <div className="flex-1 cursor-pointer" onClick={() => onSelectApplication(app)}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900">{app.company_name} - {app.position_title}</h3>
+                      </div>
                       <StatusBadge status={app.status as ApplicationStatus} />
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-2.5">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
                         <span>{new Date(app.application_date).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <MapPin className="w-4 h-4" />
                         <span>{app.location || 'Not specified'}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Briefcase className="w-3 h-3" />
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <Briefcase className="w-4 h-4" />
                         <span>{app.work_type}</span>
                       </div>
                       {app.referrals && app.referrals.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Users className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <Users className="w-4 h-4" />
                           <span>{app.referrals.length} referral{app.referrals.length > 1 ? 's' : ''}</span>
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="relative status-dropdown">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
-                        }}
-                        className="px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
-                      >
-                        Change Status
-                      </button>
-                      {showStatusDropdown === app.id && (
-                        <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
-                          {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
-                            <button
-                              key={status}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickStatusUpdate(app.id, status);
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
-                            >
-                              {status}
-                            </button>
-                          ))}
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                      <span className="text-sm text-gray-600 font-medium">Quick update:</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <div className="relative status-dropdown">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
+                            }}
+                            className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all duration-150"
+                          >
+                            Change Status
+                          </button>
+                          {showStatusDropdown === app.id && (
+                            <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                              {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
+                                <button
+                                  key={status}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickStatusUpdate(app.id, status);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                                >
+                                  {status}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditApplication(app);
+                          }}
+                          className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 hover:scale-105 active:scale-95 transition-all duration-150"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditApplication(app);
-                      }}
-                      className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
-                    >
-                      Edit
-                    </button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <button
+              onClick={toggleSelectAll}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+              title={selectedIds.size === paginatedApplications.length ? 'Deselect all' : 'Select all'}
+            >
+              {selectedIds.size === paginatedApplications.length ? (
+                <CheckSquare className="w-5 h-5 text-blue-600" />
+              ) : (
+                <Square className="w-5 h-5" />
+              )}
+            </button>
+            <span className="text-sm text-gray-600 font-medium">
+              Select all on this page
+            </span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="divide-y divide-gray-200">
+              {paginatedApplications.map((app) => (
+                <div
+                  key={app.id}
+                  className={`p-3 transition-colors ${
+                    selectedIds.has(app.id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelection(app.id);
+                      }}
+                      className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
+                    >
+                      {selectedIds.has(app.id) ? (
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <Square className="w-5 h-5" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectApplication(app)}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold text-gray-900 truncate">{app.company_name} - {app.position_title}</h4>
+                        <StatusBadge status={app.status as ApplicationStatus} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{new Date(app.application_date).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span>{app.location || 'Not specified'}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" />
+                          <span>{app.work_type}</span>
+                        </div>
+                        {app.referrals && app.referrals.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            <span>{app.referrals.length} referral{app.referrals.length > 1 ? 's' : ''}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative status-dropdown">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowStatusDropdown(showStatusDropdown === app.id ? null : app.id);
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
+                        >
+                          Change Status
+                        </button>
+                        {showStatusDropdown === app.id && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                            {APPLICATION_STATUSES.filter((s) => s !== app.status).map((status) => (
+                              <button
+                                key={status}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleQuickStatusUpdate(app.id, status);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                              >
+                                {status}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditApplication(app);
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {filteredApplications.length > 0 && totalPages > 1 && (

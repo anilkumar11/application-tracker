@@ -18,6 +18,22 @@ export interface AnalyticsData {
   };
   monthlyTrends: { month: string; applications: number; interviews: number; offers: number }[];
   topCompanies: { company: string; count: number }[];
+  applicationVelocity: {
+    last7Days: number;
+    last30Days: number;
+    perWeek: number;
+  };
+  sourcePerformance: {
+    source: string;
+    applications: number;
+    interviews: number;
+    offers: number;
+    interviewRate: number;
+    offerRate: number;
+  }[];
+  activeApplications: number;
+  pendingFollowUps: number;
+  upcomingInterviews: number;
 }
 
 export function calculateAnalytics(applications: ApplicationWithRelations[]): AnalyticsData {
@@ -102,6 +118,71 @@ export function calculateAnalytics(applications: ApplicationWithRelations[]): An
     toOffer: 0,
   };
 
+  const last7Days = new Date(now);
+  last7Days.setDate(now.getDate() - 7);
+
+  const applicationsLast7Days = applications.filter(
+    (app) => new Date(app.application_date) >= last7Days
+  ).length;
+
+  const applicationsLast30Days = applications.filter(
+    (app) => new Date(app.application_date) >= last30Days
+  ).length;
+
+  const applicationVelocity = {
+    last7Days: applicationsLast7Days,
+    last30Days: applicationsLast30Days,
+    perWeek: applicationsLast30Days > 0 ? applicationsLast30Days / 4.3 : 0,
+  };
+
+  const sourcePerformanceMap: Record<string, { applications: number; interviews: number; offers: number }> = {};
+
+  applications.forEach((app) => {
+    const source = app.application_source;
+    if (!sourcePerformanceMap[source]) {
+      sourcePerformanceMap[source] = { applications: 0, interviews: 0, offers: 0 };
+    }
+
+    sourcePerformanceMap[source].applications += 1;
+
+    if (app.status.toLowerCase().includes('interview') ||
+        (app.interview_rounds && app.interview_rounds.length > 0)) {
+      sourcePerformanceMap[source].interviews += 1;
+    }
+
+    if (app.status.toLowerCase().includes('offer') || app.status.toLowerCase().includes('accepted')) {
+      sourcePerformanceMap[source].offers += 1;
+    }
+  });
+
+  const sourcePerformance = Object.entries(sourcePerformanceMap)
+    .map(([source, data]) => ({
+      source,
+      applications: data.applications,
+      interviews: data.interviews,
+      offers: data.offers,
+      interviewRate: (data.interviews / data.applications) * 100,
+      offerRate: (data.offers / data.applications) * 100,
+    }))
+    .sort((a, b) => b.interviewRate - a.interviewRate);
+
+  const activeApplications = applications.filter(
+    (app) => !app.status.toLowerCase().includes('rejected') &&
+             !app.status.toLowerCase().includes('withdrawn') &&
+             !app.status.toLowerCase().includes('offer') &&
+             !app.status.toLowerCase().includes('accepted')
+  ).length;
+
+  const pendingFollowUps = applications.reduce((count, app) => {
+    const pending = app.follow_ups?.filter((f: any) => !f.completed && new Date(f.scheduled_date) >= new Date()) || [];
+    return count + pending.length;
+  }, 0);
+
+  const upcomingInterviews = applications.reduce((count, app) => {
+    const upcoming = app.interview_rounds?.filter((r: any) => r.status === 'Scheduled' && new Date(r.interview_date) >= new Date()) || [];
+    return count + upcoming.length;
+  }, 0);
+
   return {
     totalApplications: applications.length,
     byStatus,
@@ -112,6 +193,11 @@ export function calculateAnalytics(applications: ApplicationWithRelations[]): An
     averageDays,
     monthlyTrends,
     topCompanies,
+    applicationVelocity,
+    sourcePerformance,
+    activeApplications,
+    pendingFollowUps,
+    upcomingInterviews,
   };
 }
 
