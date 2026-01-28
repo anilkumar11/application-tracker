@@ -128,9 +128,9 @@ export const applicationApi = {
     if (error) throw error;
 
     const stats = {
-      total: data.length,
+      total: data.filter(a => a.status !== 'Withdrawn').length,
       applied: data.filter(a => a.status === 'Applied').length,
-      interviewing: data.filter(a => ['Phone Screen', 'Technical Interview', 'Final Round'].includes(a.status)).length,
+      interviewing: data.filter(a => a.status === 'Interviewing').length,
       offers: data.filter(a => a.status === 'Offer').length,
       rejected: data.filter(a => a.status === 'Rejected').length,
     };

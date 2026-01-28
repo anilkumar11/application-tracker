@@ -8,9 +8,7 @@ interface StatusBadgeProps {
 
 const statusColors: Record<ApplicationStatus, string> = {
   'Applied': 'bg-blue-100 text-blue-800',
-  'Phone Screen': 'bg-amber-100 text-amber-800',
-  'Technical Interview': 'bg-yellow-100 text-yellow-800',
-  'Final Round': 'bg-orange-100 text-orange-800',
+  'Interviewing': 'bg-amber-100 text-amber-800',
   'Offer': 'bg-green-100 text-green-800',
   'Rejected': 'bg-red-100 text-red-800',
   'Withdrawn': 'bg-gray-100 text-gray-800',

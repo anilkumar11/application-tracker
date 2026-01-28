@@ -312,9 +312,7 @@ export type ApplicationWithRelations = Application & {
 
 export const APPLICATION_STATUSES = [
   'Applied',
-  'Phone Screen',
-  'Technical Interview',
-  'Final Round',
+  'Interviewing',
   'Offer',
   'Rejected',
   'Withdrawn',
