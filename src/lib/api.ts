@@ -10,7 +10,7 @@ type InterviewRoundUpdate = Database['public']['Tables']['interview_rounds']['Up
 
 export const applicationApi = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data: applications, error } = await supabase
       .from('applications')
       .select(`
         *,
@@ -19,14 +19,37 @@ export const applicationApi = {
         status_history(*),
         interview_rounds(*)
       `)
+      .eq('archived', false)
       .order('application_date', { ascending: false });
 
     if (error) throw error;
-    return data;
+
+    if (!applications) return [];
+
+    const appIds = applications.map(app => app.id);
+    const { data: appTags } = await supabase
+      .from('application_tags')
+      .select('application_id, tag_id, tags(*)')
+      .in('application_id', appIds);
+
+    const tagsMap = new Map();
+    appTags?.forEach((item: any) => {
+      if (!tagsMap.has(item.application_id)) {
+        tagsMap.set(item.application_id, []);
+      }
+      if (item.tags) {
+        tagsMap.get(item.application_id).push(item.tags);
+      }
+    });
+
+    return applications.map(app => ({
+      ...app,
+      tags: tagsMap.get(app.id) || [],
+    }));
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data: application, error } = await supabase
       .from('applications')
       .select(`
         *,
@@ -39,7 +62,17 @@ export const applicationApi = {
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    if (!application) return null;
+
+    const { data: appTags } = await supabase
+      .from('application_tags')
+      .select('tag_id, tags(*)')
+      .eq('application_id', id);
+
+    return {
+      ...application,
+      tags: (appTags || []).map((item: any) => item.tags).filter(Boolean),
+    };
   },
 
   async create(application: ApplicationInsert, referrals: Omit<ReferralInsert, 'application_id'>[] = []) {
@@ -89,7 +122,8 @@ export const applicationApi = {
   async getStats() {
     const { data, error } = await supabase
       .from('applications')
-      .select('status');
+      .select('status')
+      .eq('archived', false);
 
     if (error) throw error;
 
@@ -102,6 +136,69 @@ export const applicationApi = {
     };
 
     return stats;
+  },
+
+  async archive(id: string) {
+    const { data, error } = await supabase
+      .from('applications')
+      .update({ archived: true, archived_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async unarchive(id: string) {
+    const { data, error } = await supabase
+      .from('applications')
+      .update({ archived: false, archived_at: null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getArchived() {
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select(`
+        *,
+        referrals(*),
+        follow_ups(*),
+        status_history(*),
+        interview_rounds(*)
+      `)
+      .eq('archived', true)
+      .order('archived_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!applications) return [];
+
+    const appIds = applications.map(app => app.id);
+    const { data: appTags } = await supabase
+      .from('application_tags')
+      .select('application_id, tag_id, tags(*)')
+      .in('application_id', appIds);
+
+    const tagsMap = new Map();
+    appTags?.forEach((item: any) => {
+      if (!tagsMap.has(item.application_id)) {
+        tagsMap.set(item.application_id, []);
+      }
+      if (item.tags) {
+        tagsMap.get(item.application_id).push(item.tags);
+      }
+    });
+
+    return applications.map(app => ({
+      ...app,
+      tags: tagsMap.get(app.id) || [],
+    }));
   },
 };
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Briefcase, Search, Filter, MapPin, Calendar, Users, Grid3x3, List, ArrowUpDown } from 'lucide-react';
+import { Briefcase, Search, Filter, MapPin, Calendar, Users, Grid3x3, List, ArrowUpDown, Download } from 'lucide-react';
 import { applicationApi } from '../lib/api';
 import type { ApplicationWithRelations, ApplicationStatus } from '../lib/database.types';
 import { APPLICATION_STATUSES } from '../lib/database.types';
+import { downloadCSV, downloadJSON, downloadDetailedReport } from '../lib/export';
 import StatusBadge from './StatusBadge';
 
 interface ApplicationsListProps {
@@ -18,8 +19,11 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [showStatusDropdown, setShowStatusDropdown] = useState<string | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'compact'>('card');
   const [sortBy, setSortBy] = useState<'date' | 'company' | 'status'>('date');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     loadApplications();
@@ -27,6 +31,7 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
 
   useEffect(() => {
     filterApplications();
+    setCurrentPage(1);
   }, [applications, searchQuery, statusFilter, sortBy]);
 
   async function loadApplications() {
@@ -83,14 +88,20 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (showStatusDropdown && !(event.target as Element).closest('.status-dropdown')) {
+      const target = event.target as Element;
+
+      if (showStatusDropdown && !target.closest('.status-dropdown')) {
         setShowStatusDropdown(null);
+      }
+
+      if (showExportDropdown && !target.closest('.export-dropdown')) {
+        setShowExportDropdown(false);
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusDropdown]);
+  }, [showStatusDropdown, showExportDropdown]);
 
   if (loading) {
     return (
@@ -100,6 +111,11 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
     );
   }
 
+  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedApplications = filteredApplications.slice(startIndex, endIndex);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -108,6 +124,47 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
           <p className="text-gray-600 mt-1">Manage all your job applications</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative export-dropdown">
+            <button
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              title="Export data"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1">
+                <button
+                  onClick={() => {
+                    downloadCSV(filteredApplications, `applications-${new Date().toISOString().split('T')[0]}.csv`);
+                    setShowExportDropdown(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 transition-colors"
+                >
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => {
+                    downloadJSON(filteredApplications, `applications-${new Date().toISOString().split('T')[0]}.json`);
+                    setShowExportDropdown(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 transition-colors"
+                >
+                  Export as JSON
+                </button>
+                <button
+                  onClick={() => {
+                    downloadDetailedReport(filteredApplications, `detailed-report-${new Date().toISOString().split('T')[0]}.csv`);
+                    setShowExportDropdown(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 transition-colors"
+                >
+                  Detailed Report
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setViewMode('card')}
             className={`p-2 rounded-lg transition-colors ${
@@ -185,7 +242,7 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
         </div>
       ) : viewMode === 'card' ? (
         <div className="grid grid-cols-1 gap-3">
-          {filteredApplications.map((app) => (
+          {paginatedApplications.map((app) => (
             <div
               key={app.id}
               className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
@@ -266,7 +323,7 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {filteredApplications.map((app) => (
+            {paginatedApplications.map((app) => (
               <div
                 key={app.id}
                 className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -340,6 +397,99 @@ export default function ApplicationsList({ onSelectApplication, onEditApplicatio
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {filteredApplications.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 rounded-b-lg">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(endIndex, filteredApplications.length)}</span> of{' '}
+                <span className="font-medium">{filteredApplications.length}</span> results
+              </p>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="ml-4 rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value={10}>10 / page</option>
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Previous</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageNumber;
+                  if (totalPages <= 7) {
+                    pageNumber = i + 1;
+                  } else if (currentPage <= 4) {
+                    pageNumber = i + 1;
+                  } else if (currentPage >= totalPages - 3) {
+                    pageNumber = totalPages - 6 + i;
+                  } else {
+                    pageNumber = currentPage - 3 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                        currentPage === pageNumber
+                          ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Next</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
           </div>
         </div>
       )}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List } from 'lucide-react';
+import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List, BarChart3, Moon, Sun } from 'lucide-react';
 import DashboardOverview from './components/DashboardOverview';
 import ApplicationsList from './components/ApplicationsList';
 import CalendarView from './components/CalendarView';
+import Analytics from './components/Analytics';
 import ApplicationForm from './components/ApplicationForm';
 import ApplicationDetail from './components/ApplicationDetail';
 import QuickAddModal from './components/QuickAddModal';
@@ -10,10 +11,12 @@ import type { ApplicationWithRelations } from './lib/database.types';
 import { supabase } from './lib/supabase';
 import { applicationApi } from './lib/api';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useTheme } from './contexts/ThemeContext';
 
-type ViewType = 'dashboard' | 'applications' | 'calendar';
+type ViewType = 'dashboard' | 'applications' | 'calendar' | 'analytics';
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -164,41 +167,41 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Job Search Applications Tracker</h1>
-            <p className="text-gray-600">Track your job applications with ease</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Job Search Applications Tracker</h1>
+            <p className="text-gray-600 dark:text-gray-300">Track your job applications with ease</p>
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="••••••••"
               />
             </div>
 
             {authError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
                 {authError}
               </div>
             )}
@@ -225,11 +228,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <h1 className="text-2xl font-bold text-gray-900">Job Search Applications Tracker</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Search Applications Tracker</h1>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
@@ -274,8 +277,16 @@ function App() {
               </div>
 
               <button
+                onClick={toggleTheme}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </button>
+
+              <button
                 onClick={() => setShowKeyboardHelp(true)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
                 title="Keyboard shortcuts"
               >
                 <Keyboard className="w-5 h-5" />
@@ -283,7 +294,7 @@ function App() {
 
               <button
                 onClick={handleSignOut}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
               >
                 Sign Out
               </button>
@@ -294,13 +305,13 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setCurrentView('dashboard')}
               className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
                 currentView === 'dashboard'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
               }`}
             >
               <LayoutGrid className="w-5 h-5" />
@@ -310,8 +321,8 @@ function App() {
               onClick={() => setCurrentView('applications')}
               className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
                 currentView === 'applications'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
               }`}
             >
               <List className="w-5 h-5" />
@@ -321,12 +332,23 @@ function App() {
               onClick={() => setCurrentView('calendar')}
               className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
                 currentView === 'calendar'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
               }`}
             >
               <Calendar className="w-5 h-5" />
               Calendar
+            </button>
+            <button
+              onClick={() => setCurrentView('analytics')}
+              className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+                currentView === 'analytics'
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <BarChart3 className="w-5 h-5" />
+              Analytics
             </button>
           </div>
         </div>
@@ -349,6 +371,10 @@ function App() {
           <CalendarView
             refreshTrigger={refreshTrigger}
           />
+        )}
+
+        {currentView === 'analytics' && (
+          <Analytics />
         )}
       </main>
 

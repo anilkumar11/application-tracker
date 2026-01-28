@@ -30,6 +30,8 @@ export type Database = {
           hr_coordinator_name: string
           hr_coordinator_phone: string
           hr_coordinator_email: string
+          archived: boolean
+          archived_at: string | null
           created_at: string
           updated_at: string
         }
@@ -53,6 +55,8 @@ export type Database = {
           hr_coordinator_name?: string
           hr_coordinator_phone?: string
           hr_coordinator_email?: string
+          archived?: boolean
+          archived_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -76,8 +80,50 @@ export type Database = {
           hr_coordinator_name?: string
           hr_coordinator_phone?: string
           hr_coordinator_email?: string
+          archived?: boolean
+          archived_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      tags: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          color: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          color?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          color?: string
+          created_at?: string
+        }
+      }
+      application_tags: {
+        Row: {
+          application_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          application_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          application_id?: string
+          tag_id?: string
+          created_at?: string
         }
       }
       referrals: {
@@ -248,6 +294,8 @@ export type Database = {
 }
 
 export type Application = Database['public']['Tables']['applications']['Row'];
+export type Tag = Database['public']['Tables']['tags']['Row'];
+export type ApplicationTag = Database['public']['Tables']['application_tags']['Row'];
 export type Referral = Database['public']['Tables']['referrals']['Row'];
 export type FollowUp = Database['public']['Tables']['follow_ups']['Row'];
 export type StatusHistory = Database['public']['Tables']['status_history']['Row'];
@@ -255,6 +303,7 @@ export type UserPreferences = Database['public']['Tables']['user_preferences']['
 export type InterviewRound = Database['public']['Tables']['interview_rounds']['Row'];
 
 export type ApplicationWithRelations = Application & {
+  tags?: Tag[];
   referrals?: Referral[];
   follow_ups?: FollowUp[];
   status_history?: StatusHistory[];
