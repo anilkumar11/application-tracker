@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Tag as TagIcon,
+  Archive,
 } from 'lucide-react';
 import type { ApplicationWithRelations, ApplicationStatus, InterviewRound } from '../lib/database.types';
 import StatusBadge from './StatusBadge';
@@ -85,6 +86,18 @@ export default function ApplicationDetail({
       toast.error('Failed to delete application. Please try again.');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleArchive() {
+    try {
+      await applicationApi.update(currentApplication.id, { archived: true });
+      toast.success('Application archived successfully');
+      onRefresh();
+      onClose();
+    } catch (error) {
+      console.error('Error archiving application:', error);
+      toast.error('Failed to archive application. Please try again.');
     }
   }
 
@@ -690,9 +703,18 @@ export default function ApplicationDetail({
               Edit Application
             </button>
             <button
+              onClick={handleArchive}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              title="Archive application"
+            >
+              <Archive className="w-5 h-5" />
+              <span>Archive</span>
+            </button>
+            <button
               onClick={handleDelete}
               disabled={deleting}
               className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Delete application"
             >
               <Trash2 className="w-5 h-5" />
             </button>
