@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Briefcase, Phone, Award, XCircle, Clock, AlertCircle, Calendar, Download, ExternalLink } from 'lucide-react';
+import { Briefcase, Phone, Award, XCircle, Clock, AlertCircle, Calendar, Download, ExternalLink, Edit, Trash2 } from 'lucide-react';
 import { applicationApi, followUpApi, interviewRoundsApi } from '../lib/api';
 import StatsCard from './StatsCard';
 import { downloadInterviewCalendar, formatRelativeTime, getDayLabel, getUrgencyLevel } from '../lib/calendar';
 import { SkeletonStats, SkeletonCard } from './LoadingSkeleton';
 import { useToast } from '../contexts/ToastContext';
+import EditFollowUpModal from './EditFollowUpModal';
 
 interface Stats {
   total: number;
@@ -51,6 +52,7 @@ export default function Dashboard() {
   const [overdueFollowUps, setOverdueFollowUps] = useState<FollowUpWithApp[]>([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState<InterviewWithApp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingFollowUp, setEditingFollowUp] = useState<FollowUpWithApp | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -85,6 +87,38 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error completing follow-up:', error);
       toast.error('Failed to complete follow-up. Please try again.');
+    }
+  }
+
+  function handleEditFollowUp(followUp: FollowUpWithApp) {
+    setEditingFollowUp(followUp);
+  }
+
+  async function handleUpdateFollowUp(id: string, data: { scheduled_date: string; description: string }) {
+    try {
+      await followUpApi.update(id, data);
+      toast.success('Follow-up updated successfully');
+      setEditingFollowUp(null);
+      loadData();
+    } catch (error) {
+      console.error('Error updating follow-up:', error);
+      toast.error('Failed to update follow-up. Please try again.');
+      throw error;
+    }
+  }
+
+  async function handleDeleteFollowUp(id: string) {
+    if (!confirm('Are you sure you want to delete this follow-up?')) {
+      return;
+    }
+
+    try {
+      await followUpApi.delete(id);
+      toast.success('Follow-up deleted successfully');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting follow-up:', error);
+      toast.error('Failed to delete follow-up. Please try again.');
     }
   }
 
@@ -222,19 +256,35 @@ export default function Dashboard() {
           <div className="space-y-2">
             {overdueFollowUps.map((followUp) => (
               <div key={followUp.id} className="flex items-center justify-between bg-white p-3 rounded-md shadow-sm hover:shadow-md transition-all duration-200">
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-gray-900">
                     {followUp.applications.company_name} - {followUp.applications.position_title}
                   </p>
                   <p className="text-sm text-gray-600">{followUp.description}</p>
                   <p className="text-xs text-red-600 mt-1 font-semibold">Due: {new Date(followUp.scheduled_date).toLocaleDateString()}</p>
                 </div>
-                <button
-                  onClick={() => handleCompleteFollowUp(followUp.id)}
-                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md"
-                >
-                  Complete
-                </button>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleEditFollowUp(followUp)}
+                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    title="Edit follow-up"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFollowUp(followUp.id)}
+                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete follow-up"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleCompleteFollowUp(followUp.id)}
+                    className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md"
+                  >
+                    Complete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -247,19 +297,35 @@ export default function Dashboard() {
           <div className="space-y-2">
             {upcomingFollowUps.slice(0, 5).map((followUp) => (
               <div key={followUp.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-blue-50 hover:shadow-sm transition-all duration-200">
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-gray-900">
                     {followUp.applications.company_name} - {followUp.applications.position_title}
                   </p>
                   <p className="text-sm text-gray-600">{followUp.description}</p>
                   <p className="text-xs text-gray-500 mt-1">{new Date(followUp.scheduled_date).toLocaleDateString()}</p>
                 </div>
-                <button
-                  onClick={() => handleCompleteFollowUp(followUp.id)}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md"
-                >
-                  Complete
-                </button>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleEditFollowUp(followUp)}
+                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    title="Edit follow-up"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFollowUp(followUp.id)}
+                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete follow-up"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleCompleteFollowUp(followUp.id)}
+                    className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md"
+                  >
+                    Complete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -275,6 +341,12 @@ export default function Dashboard() {
           <p className="text-gray-600">No follow-ups scheduled at the moment</p>
         </div>
       )}
+
+      <EditFollowUpModal
+        followUp={editingFollowUp}
+        onClose={() => setEditingFollowUp(null)}
+        onSave={handleUpdateFollowUp}
+      />
     </div>
   );
 }
