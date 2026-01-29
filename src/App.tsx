@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List, BarChart3, Moon, Sun, Tag, Archive } from 'lucide-react';
+import { Plus, Zap, ChevronDown, Keyboard, LayoutGrid, Calendar, List, BarChart3, Moon, Sun, Tag, Archive, Settings as SettingsIcon } from 'lucide-react';
 import DashboardOverview from './components/DashboardOverview';
 import ApplicationsList from './components/ApplicationsList';
 import CalendarView from './components/CalendarView';
 import Analytics from './components/Analytics';
 import TagsManagement from './components/TagsManagement';
 import ArchiveView from './components/ArchiveView';
+import Settings from './components/Settings';
 import ApplicationForm from './components/ApplicationForm';
 import ApplicationDetail from './components/ApplicationDetail';
 import QuickAddModal from './components/QuickAddModal';
@@ -18,7 +19,7 @@ import { applicationApi } from './lib/api';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTheme } from './contexts/ThemeContext';
 
-type ViewType = 'dashboard' | 'applications' | 'calendar' | 'analytics' | 'tags' | 'archive';
+type ViewType = 'dashboard' | 'applications' | 'calendar' | 'analytics' | 'tags' | 'archive' | 'settings';
 type AuthView = 'landing' | 'login' | 'signup';
 
 function App() {
@@ -235,6 +236,14 @@ function App() {
               </button>
 
               <button
+                onClick={() => setCurrentView('settings')}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
+                title="Settings"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </button>
+
+              <button
                 onClick={handleSignOut}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
               >
@@ -347,6 +356,10 @@ function App() {
 
         {currentView === 'archive' && (
           <ArchiveView refreshTrigger={refreshTrigger} />
+        )}
+
+        {currentView === 'settings' && (
+          <Settings />
         )}
       </main>
 
