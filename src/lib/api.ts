@@ -5,6 +5,7 @@ type ApplicationInsert = Database['public']['Tables']['applications']['Insert'];
 type ApplicationUpdate = Database['public']['Tables']['applications']['Update'];
 type ReferralInsert = Database['public']['Tables']['referrals']['Insert'];
 type FollowUpInsert = Database['public']['Tables']['follow_ups']['Insert'];
+type FollowUpUpdate = Database['public']['Tables']['follow_ups']['Update'];
 type InterviewRoundInsert = Database['public']['Tables']['interview_rounds']['Insert'];
 type InterviewRoundUpdate = Database['public']['Tables']['interview_rounds']['Update'];
 
@@ -261,6 +262,18 @@ export const followUpApi = {
     const { data, error } = await supabase
       .from('follow_ups')
       .insert(followUp)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async update(id: string, followUp: FollowUpUpdate) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .update(followUp)
+      .eq('id', id)
       .select()
       .single();
 

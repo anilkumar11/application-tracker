@@ -17,6 +17,7 @@ import {
   ChevronUp,
   Tag as TagIcon,
   Archive,
+  Edit,
 } from 'lucide-react';
 import type { ApplicationWithRelations, ApplicationStatus, InterviewRound } from '../lib/database.types';
 import StatusBadge from './StatusBadge';
@@ -49,6 +50,7 @@ export default function ApplicationDetail({
   const [deleting, setDeleting] = useState(false);
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const [editingRound, setEditingRound] = useState<InterviewRound | undefined>();
+  const [editingFollowUp, setEditingFollowUp] = useState<string | null>(null);
   const [suggestedRoundNumber, setSuggestedRoundNumber] = useState(1);
   const [showScheduled, setShowScheduled] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
@@ -104,18 +106,24 @@ export default function ApplicationDetail({
   async function handleAddFollowUp(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await followUpApi.create({
-        application_id: currentApplication.id,
-        ...newFollowUp,
-      });
+      if (editingFollowUp) {
+        await followUpApi.update(editingFollowUp, newFollowUp);
+        toast.success('Follow-up updated successfully');
+      } else {
+        await followUpApi.create({
+          application_id: currentApplication.id,
+          ...newFollowUp,
+        });
+        toast.success('Follow-up added successfully');
+      }
       setNewFollowUp({ scheduled_date: '', description: '' });
       setShowAddFollowUp(false);
-      toast.success('Follow-up added successfully');
+      setEditingFollowUp(null);
       await refreshApplicationData();
       onRefresh();
     } catch (error) {
-      console.error('Error adding follow-up:', error);
-      toast.error('Failed to add follow-up');
+      console.error('Error saving follow-up:', error);
+      toast.error(editingFollowUp ? 'Failed to update follow-up' : 'Failed to add follow-up');
     }
   }
 
@@ -129,6 +137,37 @@ export default function ApplicationDetail({
       console.error('Error completing follow-up:', error);
       toast.error('Failed to complete follow-up');
     }
+  }
+
+  function handleEditFollowUp(followUp: any) {
+    setNewFollowUp({
+      scheduled_date: followUp.scheduled_date,
+      description: followUp.description,
+    });
+    setEditingFollowUp(followUp.id);
+    setShowAddFollowUp(true);
+  }
+
+  async function handleDeleteFollowUp(id: string) {
+    if (!confirm('Are you sure you want to delete this follow-up?')) {
+      return;
+    }
+
+    try {
+      await followUpApi.delete(id);
+      toast.success('Follow-up deleted successfully');
+      await refreshApplicationData();
+      onRefresh();
+    } catch (error) {
+      console.error('Error deleting follow-up:', error);
+      toast.error('Failed to delete follow-up');
+    }
+  }
+
+  function handleCancelEditFollowUp() {
+    setNewFollowUp({ scheduled_date: '', description: '' });
+    setEditingFollowUp(null);
+    setShowAddFollowUp(false);
   }
 
   async function handleAddInterviewRound() {
@@ -553,6 +592,9 @@ export default function ApplicationDetail({
 
             {showAddFollowUp && (
               <form onSubmit={handleAddFollowUp} className="mb-4 p-4 bg-blue-50 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                  {editingFollowUp ? 'Edit Follow-up' : 'Add Follow-up'}
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -589,11 +631,11 @@ export default function ApplicationDetail({
                     type="submit"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Add
+                    {editingFollowUp ? 'Update' : 'Add'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAddFollowUp(false)}
+                    onClick={handleCancelEditFollowUp}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
@@ -648,14 +690,30 @@ export default function ApplicationDetail({
                             <p className="text-xs text-gray-500 mt-1">Auto-generated</p>
                           )}
                         </div>
-                        {!followUp.completed && (
+                        <div className="flex items-center gap-2">
+                          {!followUp.completed && (
+                            <button
+                              onClick={() => handleCompleteFollowUp(followUp.id)}
+                              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                            >
+                              Complete
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleCompleteFollowUp(followUp.id)}
-                            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                            onClick={() => handleEditFollowUp(followUp)}
+                            className="p-2 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                            title="Edit"
                           >
-                            Complete
+                            <Edit className="w-4 h-4" />
                           </button>
-                        )}
+                          <button
+                            onClick={() => handleDeleteFollowUp(followUp.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
