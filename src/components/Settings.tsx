@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Lock, Mail, User, Check, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, Check, AlertCircle, Upload, Database } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import ImportApplicationsModal from './ImportApplicationsModal';
 
 interface PasswordStrength {
   score: number;
@@ -20,6 +21,7 @@ export default function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     loadUserInfo();
@@ -272,8 +274,43 @@ export default function Settings() {
               </div>
             </form>
           </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Database className="w-5 h-5" />
+              Data Management
+            </h3>
+
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                  Import Applications
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Bulk import your job applications from a CSV or Excel file. Perfect for adding your historical application data.
+                </p>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Import Applications
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {showImportModal && (
+        <ImportApplicationsModal
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false);
+            success('Applications imported successfully!');
+          }}
+        />
+      )}
     </div>
   );
 }
