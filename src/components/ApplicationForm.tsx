@@ -7,6 +7,8 @@ import { APPLICATION_STATUSES, APPLICATION_SOURCES, WORK_TYPES } from '../lib/da
 import { parseJobUrl } from '../lib/urlParser';
 import DatePresets from './DatePresets';
 import { Autocomplete } from './Autocomplete';
+import { useTimezone } from '../contexts/TimezoneContext';
+import { formatDateForInput, getTimezoneAbbreviation, getTodayInTimezone } from '../lib/timezone';
 
 interface ApplicationFormProps {
   application?: ApplicationWithRelations;
@@ -22,11 +24,12 @@ interface ReferralInput {
 }
 
 export default function ApplicationForm({ application, onClose, onSuccess, recentApplications = [] }: ApplicationFormProps) {
+  const { timezone } = useTimezone();
   const [formData, setFormData] = useState({
     company_name: '',
     position_title: '',
     status: 'Applied',
-    application_date: new Date().toISOString().split('T')[0],
+    application_date: getTodayInTimezone(timezone),
     application_source: 'Direct',
     salary_range: '',
     job_url: '',
@@ -352,7 +355,7 @@ export default function ApplicationForm({ application, onClose, onSuccess, recen
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Application Date *
+                Application Date * <span className="text-xs text-gray-500">({getTimezoneAbbreviation(timezone)})</span>
               </label>
               <input
                 type="date"

@@ -26,6 +26,8 @@ import { applicationApi, followUpApi, interviewRoundsApi } from '../lib/api';
 import InterviewRoundCard from './InterviewRoundCard';
 import InterviewRoundForm from './InterviewRoundForm';
 import { useToast } from '../contexts/ToastContext';
+import { useTimezone } from '../contexts/TimezoneContext';
+import { formatDateForDisplay, formatDateTimeForDisplay } from '../lib/timezone';
 
 interface ApplicationDetailProps {
   application: ApplicationWithRelations;
@@ -41,6 +43,7 @@ export default function ApplicationDetail({
   onRefresh,
 }: ApplicationDetailProps) {
   const toast = useToast();
+  const { timezone } = useTimezone();
   const [currentApplication, setCurrentApplication] = useState<ApplicationWithRelations>(application);
   const [showAddFollowUp, setShowAddFollowUp] = useState(false);
   const [newFollowUp, setNewFollowUp] = useState({
@@ -255,7 +258,7 @@ export default function ApplicationDetail({
               <div>
                 <p className="text-sm text-gray-500">Applied On</p>
                 <p className="font-medium">
-                  {new Date(currentApplication.application_date).toLocaleDateString()}
+                  {formatDateForDisplay(currentApplication.application_date, timezone)}
                 </p>
               </div>
             </div>
@@ -682,7 +685,7 @@ export default function ApplicationDetail({
                                 isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'
                               }`}
                             >
-                              {new Date(followUp.scheduled_date).toLocaleDateString()}
+                              {formatDateForDisplay(followUp.scheduled_date, timezone)}
                               {isOverdue && ' (Overdue)'}
                             </p>
                           </div>
@@ -743,7 +746,7 @@ export default function ApplicationDetail({
                     <div className="flex-1 pb-4">
                       <StatusBadge status={history.status as ApplicationStatus} size="sm" />
                       <p className="text-sm text-gray-500 mt-1">
-                        {new Date(history.changed_at).toLocaleString()}
+                        {formatDateTimeForDisplay(history.changed_at, timezone)}
                       </p>
                       {history.notes && <p className="text-sm text-gray-700 mt-1">{history.notes}</p>}
                     </div>

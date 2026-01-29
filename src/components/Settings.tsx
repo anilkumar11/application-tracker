@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Lock, Mail, User, Check, AlertCircle, Upload, Database } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, Check, AlertCircle, Upload, Database, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useTimezone } from '../contexts/TimezoneContext';
+import { COMMON_TIMEZONES, formatTimezoneDisplay } from '../lib/timezone';
 import ImportApplicationsModal from './ImportApplicationsModal';
 
 interface PasswordStrength {
@@ -12,7 +14,9 @@ interface PasswordStrength {
 
 export default function Settings() {
   const { success, error } = useToast();
+  const { timezone, setTimezone } = useTimezone();
   const [userEmail, setUserEmail] = useState('');
+  const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,6 +32,10 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
+    setSelectedTimezone(timezone);
+  }, [timezone]);
+
+  useEffect(() => {
     if (newPassword) {
       calculatePasswordStrength(newPassword);
     } else {
@@ -39,6 +47,20 @@ export default function Settings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
       setUserEmail(user.email);
+    }
+  }
+
+  async function handleTimezoneChange(newTimezone: string) {
+    try {
+      setIsLoading(true);
+      await setTimezone(newTimezone);
+      setSelectedTimezone(newTimezone);
+      success('Timezone updated successfully');
+    } catch (err) {
+      console.error('Error updating timezone:', err);
+      error('Failed to update timezone');
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -135,6 +157,41 @@ export default function Settings() {
                 Email Address
               </label>
               <p className="text-gray-900 dark:text-white font-medium">{userEmail || 'Loading...'}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Globe className="w-5 h-5" />
+              Timezone Settings
+            </h3>
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 space-y-4">
+              <div>
+                <label htmlFor="timezone-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Your Timezone
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  All dates and times in the application will be displayed in this timezone.
+                </p>
+                <select
+                  id="timezone-select"
+                  value={selectedTimezone}
+                  onChange={(e) => handleTimezoneChange(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                >
+                  {COMMON_TIMEZONES.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {formatTimezoneDisplay(tz)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <p className="text-xs text-blue-800 dark:text-blue-400">
+                  Current timezone: <strong>{formatTimezoneDisplay(timezone)}</strong>
+                </p>
+              </div>
             </div>
           </div>
 

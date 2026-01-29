@@ -1,6 +1,8 @@
 import { Calendar, CheckCircle, XCircle, Edit, Trash2, Linkedin, Download, Copy, RefreshCw, Video, Phone, MapPin, ExternalLink } from 'lucide-react';
 import type { InterviewRound } from '../lib/database.types';
 import { downloadInterviewCalendar, formatRelativeTime, getDayLabel, getUrgencyLevel } from '../lib/calendar';
+import { useTimezone } from '../contexts/TimezoneContext';
+import { formatDateTimeForDisplay } from '../lib/timezone';
 
 interface InterviewRoundCardProps {
   interviewRound: InterviewRound;
@@ -58,6 +60,7 @@ export default function InterviewRoundCard({
   onMarkComplete,
   onReschedule,
 }: InterviewRoundCardProps) {
+  const { timezone } = useTimezone();
   const config = statusConfig[interviewRound.status as keyof typeof statusConfig];
   const StatusIcon = config.icon;
   const dayLabel = getDayLabel(interviewRound.interview_date);
@@ -77,18 +80,6 @@ export default function InterviewRoundCard({
     if (confirm('Are you sure you want to delete this interview round?')) {
       onDelete(interviewRound.id);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -112,7 +103,7 @@ export default function InterviewRoundCard({
             </div>
             <p className={`text-sm ${config.text} mt-1`}>
               <StatusIcon className="inline w-4 h-4 mr-1" />
-              {formatDate(interviewRound.interview_date)}
+              {formatDateTimeForDisplay(interviewRound.interview_date, timezone)}
               {interviewRound.status === 'Scheduled' && (
                 <span className="ml-2 font-medium">
                   ({formatRelativeTime(interviewRound.interview_date)})

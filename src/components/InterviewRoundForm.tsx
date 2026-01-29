@@ -4,6 +4,8 @@ import { interviewRoundsApi } from '../lib/api';
 import type { InterviewRound } from '../lib/database.types';
 import { INTERVIEW_ROUND_TYPES, INTERVIEW_ROUND_STATUSES, FEEDBACK_SENTIMENTS, MEETING_TYPES } from '../lib/database.types';
 import { useToast } from '../contexts/ToastContext';
+import { useTimezone } from '../contexts/TimezoneContext';
+import { formatDateForInput, getTimezoneAbbreviation } from '../lib/timezone';
 
 interface InterviewRoundFormProps {
   applicationId: string;
@@ -21,6 +23,7 @@ export default function InterviewRoundForm({
   suggestedRoundNumber,
 }: InterviewRoundFormProps) {
   const toast = useToast();
+  const { timezone } = useTimezone();
   const [formData, setFormData] = useState({
     round_number: suggestedRoundNumber || 1,
     round_type: 'Phone Screen',
@@ -44,8 +47,7 @@ export default function InterviewRoundForm({
 
   useEffect(() => {
     if (interviewRound) {
-      const date = new Date(interviewRound.interview_date);
-      const formattedDate = date.toISOString().slice(0, 16);
+      const formattedDate = formatDateForInput(interviewRound.interview_date, timezone);
 
       setFormData({
         round_number: interviewRound.round_number,
@@ -66,7 +68,7 @@ export default function InterviewRoundForm({
         cancellation_reason: interviewRound.cancellation_reason,
       });
     }
-  }, [interviewRound]);
+  }, [interviewRound, timezone]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
@@ -199,7 +201,9 @@ export default function InterviewRoundForm({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Interview Date & Time *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Interview Date & Time * <span className="text-xs text-gray-500">({getTimezoneAbbreviation(timezone)})</span>
+              </label>
               <input
                 type="datetime-local"
                 name="interview_date"

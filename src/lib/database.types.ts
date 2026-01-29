@@ -213,6 +213,7 @@ export type Database = {
           user_id: string
           position_titles: string[]
           locations: string[]
+          timezone: string
           created_at: string
           updated_at: string
         }
@@ -221,6 +222,7 @@ export type Database = {
           user_id: string
           position_titles?: string[]
           locations?: string[]
+          timezone?: string
           created_at?: string
           updated_at?: string
         }
@@ -229,6 +231,7 @@ export type Database = {
           user_id?: string
           position_titles?: string[]
           locations?: string[]
+          timezone?: string
           created_at?: string
           updated_at?: string
         }
