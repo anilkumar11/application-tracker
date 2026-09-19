@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Briefcase } from 'lucide-react';
+import { ArrowLeft, Briefcase, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LoginFormProps {
@@ -7,16 +7,28 @@ interface LoginFormProps {
   onSwitchToSignUp: () => void;
 }
 
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('failed to fetch') ||
+    msg.includes('network request failed') ||
+    msg.includes('networkerror') ||
+    msg.includes('load failed') ||
+    err instanceof TypeError;
+}
+
 export default function LoginForm({ onBack, onSwitchToSignUp }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isNetworkIssue, setIsNetworkIssue] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setIsNetworkIssue(false);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -25,7 +37,12 @@ export default function LoginForm({ onBack, onSwitchToSignUp }: LoginFormProps) 
       });
       if (error) throw error;
     } catch (error: any) {
-      setError(error.message);
+      if (isNetworkError(error)) {
+        setIsNetworkIssue(true);
+        setError('Unable to connect to the server. This is usually caused by a browser extension (like an ad blocker), a VPN, or a network restriction. Try disabling browser extensions or opening this page in a private/incognito window.');
+      } else {
+        setError(error.message || 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -82,6 +99,12 @@ export default function LoginForm({ onBack, onSwitchToSignUp }: LoginFormProps) 
 
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
+                {isNetworkIssue && (
+                  <div className="flex items-start gap-2 mb-2">
+                    <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span className="font-semibold">Connection Error</span>
+                  </div>
+                )}
                 {error}
               </div>
             )}
